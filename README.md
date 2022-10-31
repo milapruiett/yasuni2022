@@ -7,3 +7,7 @@ I quantified standing herbivory and created an experiment, manipulating leaves t
 ### This repo contains
 - raw data files
 - R code to analyze data
+
+### Dependencies
+- tidyverse
+- lme4

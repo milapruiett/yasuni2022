@@ -67,9 +67,7 @@ ggplot(data = subset(shortAntData, Nest %in% "Power"), aes(x = Treatment, y = Pe
   labs(title="Percentage lost of leaves left at the power station nest", y = "Percent loss in an hour")
 
 
-# comparison of species (of course it should be different)
-ggplot(data = shortAntData, mapping=aes(x=Sp, y=PercLossStandard, fill=Sp)) +
-  geom_boxplot()
+
 
 # need to separate by age and treatment
 shortAntData <- shortAntData %>% 
@@ -86,12 +84,10 @@ negLoss <- shortAntData %>% filter(PercLossStandard < 0) # there are 6 where it 
 ### Which means removing rows 52, 112, and 117
 shortAntData <- shortAntData %>%   filter(!row_number() %in% c(52, 112, 177))
 ### now to manually change rows 19 and 20 ###IDK HOW
-## replace(case_when(shortAntData$Trial == 5 & shortAntData$Treatment == "RR" ~ 10.938)
-
 
 # transform the percent data
-foo <- min(shortAntData$PercLossStandard[shortAntData$PercLossStandard > 0])
-shortAntData$transPercLossStandard <- log((shortAntData$PercLossStandard + foo) / (foo + 1 + shortAntData$PercLossStandard))
+#foo <- min(shortAntData$PercLossStandard[shortAntData$PercLossStandard > 0])
+# shortAntData$transPercLossStandard <- log((shortAntData$PercLossStandard + foo) / (foo + 1 + shortAntData$PercLossStandard))
 
 # data visualization
 ggplot(data = shortAntData, aes(x=transPercLossStandard))  +
@@ -122,14 +118,14 @@ anova(modVelu)
 library(gamlss)
 
 # treatment as a factor
-shortAntData <- as.factor(shortAntData$Treatment)
+shortAntData$Treatment <- as.factor(shortAntData$Treatment)
 
 # well sometimes I have negative values. but those are due to measurement errors. everything that is negative needs to be 0
 shortAntData <- shortAntData %>% 
   mutate(PercLossStandardNoNeg = ifelse(PercLossStandard < 0, 0, PercLossStandard))
 
 # it seems to really hate nas so I am going to make a simple table with only my variables of interest
-herbForMod <- shortAntData %>% dplyr::select(Age, RollStatus, Treatment, PercLossStandard, PercLossStandardNoNeg, Nest, Date, Sp)
+herbForMod <- shortAntData %>% dplyr::select(Trial, Age, RollStatus, Treatment, PercLossStandard, PercLossStandardNoNeg, Nest, Date, Sp)
 
 herbForMod %>% mutate(dataClass = case_when(PercLossStandardNoNeg == 1 ~ "one",
                                                           PercLossStandard == 0 ~ "zero",
@@ -184,6 +180,14 @@ herbForMod %>%
 herbForMod <- herbForMod %>% mutate(eatenPresence = case_when(PercLossStandardNoNeg <= 0.05 ~ 0,
                                             PercLossStandard > 0.05 ~ 1))
 
-herbForMod %>% filter(Sp == "velu") %>% 
-  
+veluAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "velu",])
+summary(veluAntMod)  
+
+scaberAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "scaber",])
+summary(scaberAntMod)  
+
+gigAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "gig",])
+summary(gigAntMod)  
+
+
              
