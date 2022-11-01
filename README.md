@@ -5,6 +5,7 @@
 I studied leaf rolling as a defense against herbivory. I quantified standing herbivory and created an experiment, manipulating leaves to be rolled or unrolled.
 
 ![Many-banded aracari](photos/IMG_1610.jpg)
+Thank you to Emilio Trujillo for this photo. 
 
 ### This repo contains
 
