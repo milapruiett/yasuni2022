@@ -61,6 +61,7 @@ ggplot(herbByPlant, aes(Sp, plantPercHerb, fill = Sp)) +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) 
 
+
 # long form of herb by plant 
 # create long form data, where each row is a percent of herbivory
 longFormPresenceAbsence <- herbByPlant %>% 
@@ -83,7 +84,9 @@ longFormPresenceAbsence %>%
   theme(strip.text.x = element_text(face = "italic")) +
   ylab("Percentage of Leaves with Herbivory")
 
+###### NEED MRM to help w/ stats here
 summary(lmer(data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID)))
+lmer(lmer(family = logistic, data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID))))
 
 # how much leaf area is lost due to herbivory on average
 standingSummary <- standing %>% group_by(Sp) %>% 
@@ -174,4 +177,9 @@ herbivoryLongForm %>%
   theme(strip.text.x = element_text(face = "italic")) +
   scale_y_continuous(trans = 'log10') +
   ylab("Percent of Leaf Lost to Herbivory") 
+
+foo <- standing %>% 
+  subset( Sp == "giga" & (rhHerbPerc > 0 | uhHerbPerc > 0))
+  
+t.test(x = foo$rhHerbPerc, y = foo$uhHerbPerc, paired = T)
 
