@@ -4,7 +4,7 @@ library(lme4)
 library(lmerTest)
 
 # read the data
-antData <- read_csv("antData.csv")
+antData <- read_csv("data/antData.csv")
 
 # find area loss
 antData$Loss <- antData$TotalArea - antData$AreaFinal
@@ -168,13 +168,14 @@ names(nest.labs) <- c("Gym", "Power")
 herbForMod %>% 
   ggplot(aes(y=PercLossStandardAllGood, x = Age, fill = RollStatus))  +
   geom_boxplot() +
-  facet_grid(Nest ~ Sp, 
+  facet_wrap(~ Sp, 
                labeller = labeller(Sp = sp.labs, Nest = nest.labs)) +
   theme(panel.spacing = unit(0.5, "cm"), strip.text.x = element_text(face = "italic")) +
   scale_fill_discrete(labels=c('Rolled', 'Unrolled')) +
   ylab("Percentage of Leaf Eaten in 1 hr") +
   xlab("Leaf Age") +
   scale_fill_discrete(name = "Leaf Status")
+
 
 # logisitic regression
 herbForMod <- herbForMod %>% mutate(eatenPresence = case_when(PercLossStandardNoNeg <= 0.05 ~ 0,

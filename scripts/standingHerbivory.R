@@ -1,8 +1,11 @@
+# this is the cleaner version
+
 #install.packages("gamlss")
 
 # load dependencies
 library("tidyverse")
 library("gamlss")
+library("lme4")
 
 # read the data
 standing <- read_csv("data/StandingHerbivoryDataMila.xlsx - Sheet1.csv")
@@ -29,14 +32,22 @@ standing <- standing %>% filter(Sp == "giga"| Sp == "scaber"| Sp == "velutia"| S
 # creating presence / absence columns for all types of herbivory
 standing <- standing %>% mutate(rhPresence = case_when(RH <= 0 ~ 0, RH > 0 ~ 1)) %>% 
   mutate(herbPresence = case_when(totalHerb <= 0 ~ 0, totalHerb > 0 ~ 1 )) %>% 
-  standing <- standing %>% mutate(uhPresence = case_when(totalHerb <= 0 ~ 0, totalHerb > 0 ~ 1 ))
+  mutate(uhPresence = case_when(totalHerb <= 0 ~ 0, totalHerb > 0 ~ 1 ))
+
+# logistic regression for each species and each type of herbivory ? 
+
 
 # on a given plant, how many leaves will have herbivory on average?
 herbByPlant <- standing %>% 
   group_by(Sp, ID) %>% 
-  summarize(numLeaves =n_distinct(LeafNo), numLeavesWHerb = sum(herbPresence == 1)) %>% 
+  summarize(numLeaves =n_distinct(LeafNo), 
+            numLeavesWHerb = sum(herbPresence == 1), 
+                                 numLeavesWRolledHerb = sum(rhPresence == 1), 
+                                 numLeavesWUnrolledHerb = sum(uhPresence == 1)) %>% 
   mutate(plantPercHerb = numLeavesWHerb / numLeaves) %>% 
-  mutate(plantPercHerb = if_else(plantPercHerb > 1, 1, plantPercHerb))
+  mutate(plantPercHerb = if_else(plantPercHerb > 1, 1, plantPercHerb)) %>% 
+  mutate(plantPercRolledHerb = numLeavesWRolledHerb / numLeaves) %>% 
+  mutate(plantPercUnrolledHerb = numLeavesWUnrolledHerb / numLeaves)
 
 herbByPlant %>% group_by(Sp) %>% 
   summarize(avgLeavesWHerb = mean(plantPercHerb, na.rm = T), 
@@ -49,6 +60,30 @@ ggplot(herbByPlant, aes(Sp, plantPercHerb, fill = Sp)) +
   scale_fill_discrete(name = "Species", labels=c('R. gigante', 'C. scaber', "H. stricta", "H. velutia")) +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) 
+
+# long form of herb by plant 
+# create long form data, where each row is a percent of herbivory
+longFormPresenceAbsence <- herbByPlant %>% 
+  dplyr::select("Sp", "ID", "plantPercRolledHerb", "plantPercUnrolledHerb") %>% 
+  pivot_longer(cols = c(plantPercRolledHerb, plantPercUnrolledHerb), 
+               names_to = "Rolled",
+               values_to = "percentHerbPresence")
+
+Sp.labs <- c("R. gigante", "C. scaber", "H. scaber", "H. velutina")
+names(Sp.labs) <- c("giga", "scaber","stricta",  "velutia")
+
+longFormPresenceAbsence %>% 
+  ggplot(aes(Rolled, percentHerbPresence, fill = Rolled)) +
+  geom_boxplot() +
+  facet_wrap(~Sp) +
+  scale_fill_discrete(name = "Herbivory Type", labels =c("Rolled", "Unrolled")) +
+  xlab("") +
+  facet_wrap(~ Sp, 
+             labeller = labeller(Sp = Sp.labs)) +
+  theme(strip.text.x = element_text(face = "italic")) +
+  ylab("Percentage of Leaves with Herbivory")
+
+summary(lmer(data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID)))
 
 # how much leaf area is lost due to herbivory on average
 standingSummary <- standing %>% group_by(Sp) %>% 
@@ -96,7 +131,7 @@ dataForBetaRegStandingHerb %>% mutate(dataClass = case_when(percentHerb == 1 ~ "
   summarize(n())
 
 # run the zero-inflated beta regression, for each species
-modHVel <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "velutia" , ], trace = F)
+modHVel <- gamlss(percentHerb ~ Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "velutia" , ], trace = F)
 summary(modHVel)   
 
 modHStr <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb, trace = F)
@@ -113,10 +148,6 @@ longformSummary <- herbivoryLongForm %>%
   group_by(Sp, Rolled, LeafNo) %>% 
   summarize(meanHerb = mean(percentHerb, na.rm = T), sdHerb = sd(percentHerb, na.rm = T))
 
-Sp.labs <- c("R. gigante", "C. scaber", "H. scaber", "H. velutina")
-names(Sp.labs) <- c("giga", "scaber","stricta",  "velutia")
-
-
 longformSummary %>% 
   subset(LeafNo != "Terminal") %>% 
   ggplot(mapping = aes(y = meanHerb, x = LeafNo, fill = Rolled)) +
@@ -130,4 +161,17 @@ longformSummary %>%
   ylab("Mean Percent Herbivory") 
 # can add error bars with:  geom_errorbar(aes(ymin = meanHerb - sdHerb, ymax = meanHerb + sdHerb), position = position_dodge(width = 0.9))
 
+
+# for Murdock presentation
+herbivoryLongForm %>% 
+  ggplot(aes(x = Rolled, y = percentHerb, fill = Rolled)) +
+    geom_boxplot() +
+  facet_wrap(~ Sp) +
+  scale_fill_discrete(name = "Herbivory Type", labels =c("Rolled", "Unrolled")) +
+  xlab("") +
+  facet_wrap(~ Sp, 
+             labeller = labeller(Sp = Sp.labs)) +
+  theme(strip.text.x = element_text(face = "italic")) +
+  scale_y_continuous(trans = 'log10') +
+  ylab("Percent of Leaf Lost to Herbivory") 
 
