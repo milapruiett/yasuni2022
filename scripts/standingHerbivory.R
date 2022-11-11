@@ -130,17 +130,19 @@ dataForBetaRegStandingHerb %>% mutate(dataClass = case_when(percentHerb == 1 ~ "
   group_by(dataClass) %>% 
   summarize(n())
 
+dataForBetaRegStandingHerb$LeafNo <- as.numeric(dataForBetaRegStandingHerb$LeafNo) # should i treat leaf no as a numeric or cat variable? 
+
 # run the zero-inflated beta regression, for each species
-modHVel <- gamlss(percentHerb ~ Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "velutia" , ], trace = F)
+modHVel <- gamlss(percentHerb ~ Rolled + LeafNo,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "velutia" , ], trace = F)
 summary(modHVel)   
 
-modHStr <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb, trace = F)
+modHStr <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "stricta" , ], trace = F)
 summary(modHStr)   
 
-modCSca <- gamlss(percentHerb ~ LeafNo +  Rolled,  family = BEZI, data = dataForBetaRegStandingHerb, trace = F)
+modCSca <- gamlss(percentHerb ~ LeafNo +  Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "scaber" , ], trace = F)
 summary(modCSca)   
 
-modRgig <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb, trace = F)
+modRgig <- gamlss(percentHerb ~ LeafNo + Rolled,  family = BEZI, data = dataForBetaRegStandingHerb[dataForBetaRegStandingHerb$Sp == "giga" , ], trace = F)
 summary(modRgig)   
 
 # a viz with the summary
