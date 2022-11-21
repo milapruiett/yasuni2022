@@ -85,31 +85,6 @@ negLoss <- shortAntData %>% filter(PercLossStandard < 0) # there are 6 where it 
 shortAntData <- shortAntData %>%   filter(!row_number() %in% c(52, 112, 177))
 ### now to manually change rows 19 and 20 ###IDK HOW
 
-# transform the percent data
-#foo <- min(shortAntData$PercLossStandard[shortAntData$PercLossStandard > 0])
-# shortAntData$transPercLossStandard <- log((shortAntData$PercLossStandard + foo) / (foo + 1 + shortAntData$PercLossStandard))
-
-# data visualization
-ggplot(data = shortAntData, aes(x=transPercLossStandard))  +
-  geom_histogram() +
-  facet_grid(vars(Sp), vars(Nest))
-
-ggplot(data = shortAntData, aes(y=transPercLossStandard, x = Age, fill = RollStatus))  +
-  geom_boxplot() +
-  facet_grid(vars(Nest),vars(Sp))
-
-# inferential stats
-summary(aov(shortAntData$PercLossStandard ~ shortAntData$Age + shortAntData$RollStatus + shortAntData$Sp))
-
-modScaber <- lmerTest::lmer(transPercLossStandard ~ Age * RollStatus + (1|Nest:ID:Age) + (1|Date), data = shortAntData[shortAntData$Sp == "scaber",])
-summary(modScaber)
-
-modGig<- lmerTest::lmer(transPercLossStandard ~ Age * RollStatus + (1|Nest:ID:Age) + (1|Date), data = shortAntData[shortAntData$Sp == "gig",])
-summary(modGig)
-
-modVelu <- lmerTest::lmer(transPercLossStandard ~ Age * RollStatus + (1|Nest:ID:Age) + (1|Date), data = shortAntData[shortAntData$Sp == "velu",])
-summary(modVelu)
-anova(modVelu)
 
 # is my data zero-inflated
 100*sum(shortAntData$PercLossStandard == 0)/nrow(shortAntData) # yes, 55% of the data are zeros
@@ -190,5 +165,14 @@ summary(scaberAntMod)
 gigAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "gig",])
 summary(gigAntMod)  
 
+# what percentage of leaves are eaten vs not 
+herbForMod %>% 
+  group_by(RollStatus, eatenPresence) %>% 
+  summarize(n())
+
+# what percentage of leaf loss 
+herbForMod %>% 
+  group_by(RollStatus) %>% 
+  summarize(mean(PercLossStandardAllGood))
 
              
