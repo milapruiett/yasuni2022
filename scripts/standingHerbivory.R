@@ -1,6 +1,5 @@
 # this is the cleaner version
 
-#install.packages("gamlss")
 
 # load dependencies
 library("tidyverse")
@@ -36,6 +35,11 @@ standing <- standing %>% mutate(rhPresence = case_when(RH <= 0 ~ 0, RH > 0 ~ 1))
 
 # logistic regression for each species and each type of herbivory ? 
 
+scaberStandingMod <- glmer(rhPresence ~ LeafNo + (1|ID), family = binomial, data = standing[standing$Sp == "scaber",])
+summary(scaberStandingMod)  
+ ### ?????
+
+
 
 # on a given plant, how many leaves will have herbivory on average?
 herbByPlant <- standing %>% 
@@ -63,6 +67,7 @@ ggplot(herbByPlant, aes(Sp, plantPercHerb, fill = Sp)) +
 
 
 # long form of herb by plant 
+
 # create long form data, where each row is a percent of herbivory
 longFormPresenceAbsence <- herbByPlant %>% 
   dplyr::select("Sp", "ID", "plantPercRolledHerb", "plantPercUnrolledHerb") %>% 
@@ -85,6 +90,7 @@ longFormPresenceAbsence %>%
   ylab("Percentage of Leaves with Herbivory")
 
 ###### NEED MRM to help w/ stats here
+
 summary(lmer(data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID)))
 lmer(lmer(family = logistic, data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID))))
 
@@ -184,4 +190,21 @@ foo <- standing %>%
   subset( Sp == "giga" & (rhHerbPerc > 0 | uhHerbPerc > 0))
   
 t.test(x = foo$rhHerbPerc, y = foo$uhHerbPerc, paired = T)
+
+
+# question: are losses when leaf is rolled less than when leaf is unrolled in the first leaf?
+
+herbivoryLongForm %>% 
+  filter(Sp == "stricta" & percentHerb > 0 ) %>% 
+  ggplot(aes(x = Rolled, y = percentHerb)) +
+  geom_boxplot()
+
+summary(glmer(percentHerb ~ Rolled + (1|ID/LeafNo), data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "stricta" & herbivoryLongForm$percentHerb > 0, ])))
+summary(gamlss(percentHerb ~ Rolled, random = ~1|ID/LeafNo, family = BEZI, data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "stricta", ])))
+summary(gamlss(percentHerb ~ Rolled, random = ~1|ID/LeafNo, family = BE, data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "stricta" & herbivoryLongForm$percentHerb >0 , ])))
+
+
+summary(lmer(percentHerb ~ Rolled + (1|ID), data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "velutia", ])))
+summary(gamlss(percentHerb ~ Rolled + (1|ID), family = BEZI, data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "velutia", ])))
+
 

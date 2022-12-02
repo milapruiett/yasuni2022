@@ -2,6 +2,7 @@
 library(tidyverse)
 library(lme4)
 library(lmerTest)
+library(gamlss)
 
 # read the data
 antData <- read_csv("data/antData.csv")
@@ -54,8 +55,6 @@ ggplot(data = subset(shortAntData, Nest %in% "Power"), aes(x = Treatment, y = Pe
   facet_wrap(~Sp) +
   labs(title="Percentage lost of leaves left at the power station nest", y = "Percent loss in an hour")
 
-
-  
 ggplot(data = subset(shortAntData, Nest %in% "Gym"), aes(x = Treatment, y = PercLossStandard, fill = Treatment)) +
   geom_boxplot() +
   scale_y_continuous(trans = "pseudo_log") +
@@ -82,7 +81,7 @@ negLoss <- shortAntData %>% filter(PercLossStandard < 0) # there are 6 where it 
 # list of all the largely negative values: Trial5YoungRolled (need to switch values for rows 19 and 20 in shortAntData)
 ## Trial13YoungUnrolled, Trial34OldUnrolled, Trial50OldROlled need to be removed because I don't see why they are wrong
 ### Which means removing rows 52, 112, and 117
-shortAntData <- shortAntData %>%   filter(!row_number() %in% c(52, 112, 177))
+shortAntData <- shortAntData %>%   filter(!row_number() %in% c(19, 20, 52, 112, 177))
 ### now to manually change rows 19 and 20 ###IDK HOW
 
 
@@ -90,12 +89,11 @@ shortAntData <- shortAntData %>%   filter(!row_number() %in% c(52, 112, 177))
 100*sum(shortAntData$PercLossStandard == 0)/nrow(shortAntData) # yes, 55% of the data are zeros
 
 ## zero inflated beta regression
-library(gamlss)
 
 # treatment as a factor
 shortAntData$Treatment <- as.factor(shortAntData$Treatment)
 
-# well sometimes I have negative values. but those are due to measurement errors. everything that is negative needs to be 0
+# I have two values that are negative (very very tiny)
 shortAntData <- shortAntData %>% 
   mutate(PercLossStandardNoNeg = ifelse(PercLossStandard < 0, 0, PercLossStandard))
 
@@ -109,16 +107,11 @@ herbForMod %>% mutate(dataClass = case_when(PercLossStandardNoNeg == 1 ~ "one",
   summarize(n())
 
 
-m1 <- gamlss(PercLossStandardNoNeg ~ Age * RollStatus + Sp,  family = BEINF, data = herbForMod, trace = F)
-summary(m1) # do i still need to have the random effects? 
-
 # changing the one that is one to .9999
 herbForMod <- herbForMod %>% 
   mutate(PercLossStandardAllGood = ifelse(PercLossStandardNoNeg == 1, .999, PercLossStandardNoNeg))
 
-m2 <- gamlss(PercLossStandardAllGood ~ Age * RollStatus + Sp + Nest,  family = BEZI, data = herbForMod, trace = F)
-summary(m2) # do i still need to have the random effects? 
-
+# running the zero-inflated beta regression for each species
 m3 <- gamlss(PercLossStandardAllGood ~ Age * RollStatus + Nest,  family = BEZI, data = herbForMod[herbForMod$Sp == "scaber",], trace = F)
 summary(m3) 
 
@@ -127,6 +120,31 @@ summary(m4)
 
 m5 <- gamlss(PercLossStandardAllGood ~ Age * RollStatus + Nest,  family = BEZI, data = herbForMod[herbForMod$Sp == "velu",], trace = F)
 summary(m5) 
+
+# logisitic regression, one for each species
+# create binary response (eaten vs not, consider leaves whose percent loss is quite small to be due to measurement differences)
+herbForMod <- herbForMod %>% mutate(eatenPresence = case_when(PercLossStandardNoNeg <= 0.05 ~ 0,
+                                                              PercLossStandard > 0.05 ~ 1))
+
+veluAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "velu",])
+summary(veluAntMod)  # check w/ Margaret about the random effects in these models 
+
+scaberAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "scaber",])
+summary(scaberAntMod)  
+
+gigAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "gig",])
+summary(gigAntMod)  
+
+# what percentage of leaves are eaten vs not 
+herbForMod %>% 
+  group_by(RollStatus, eatenPresence) %>% 
+  summarize(n())
+
+# what percentage of leaf loss 
+herbForMod %>% 
+  group_by(RollStatus) %>% 
+  summarize(mean(PercLossStandardAllGood))
+
 
 
 # viz for presentation
@@ -151,28 +169,5 @@ herbForMod %>%
   xlab("Leaf Age") +
   scale_fill_discrete(name = "Leaf Status")
 
-
-# logisitic regression
-herbForMod <- herbForMod %>% mutate(eatenPresence = case_when(PercLossStandardNoNeg <= 0.05 ~ 0,
-                                            PercLossStandard > 0.05 ~ 1))
-
-veluAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "velu",])
-summary(veluAntMod)  
-
-scaberAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "scaber",])
-summary(scaberAntMod)  
-
-gigAntMod <- glmer(eatenPresence ~ RollStatus + Age + Nest + (1|Trial), family = binomial, data = herbForMod[herbForMod$Sp == "gig",])
-summary(gigAntMod)  
-
-# what percentage of leaves are eaten vs not 
-herbForMod %>% 
-  group_by(RollStatus, eatenPresence) %>% 
-  summarize(n())
-
-# what percentage of leaf loss 
-herbForMod %>% 
-  group_by(RollStatus) %>% 
-  summarize(mean(PercLossStandardAllGood))
 
              
