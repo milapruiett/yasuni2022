@@ -5,6 +5,7 @@
 library("tidyverse")
 library("gamlss")
 library("lme4")
+library("MASS")
 
 # read the data
 standing <- read_csv("data/StandingHerbivoryDataMila.xlsx - Sheet1.csv")
@@ -32,13 +33,6 @@ standing <- standing %>% filter(Sp == "giga"| Sp == "scaber"| Sp == "velutia"| S
 standing <- standing %>% mutate(rhPresence = case_when(RH <= 0 ~ 0, RH > 0 ~ 1)) %>% 
   mutate(herbPresence = case_when(totalHerb <= 0 ~ 0, totalHerb > 0 ~ 1 )) %>% 
   mutate(uhPresence = case_when(totalHerb <= 0 ~ 0, totalHerb > 0 ~ 1 ))
-
-# logistic regression for each species and each type of herbivory ? 
-
-scaberStandingMod <- glmer(rhPresence ~ LeafNo + (1|ID), family = binomial, data = standing[standing$Sp == "scaber",])
-summary(scaberStandingMod)  
- ### ?????
-
 
 
 # on a given plant, how many leaves will have herbivory on average?
@@ -206,5 +200,50 @@ summary(gamlss(percentHerb ~ Rolled, random = ~1|ID/LeafNo, family = BE, data = 
 
 summary(lmer(percentHerb ~ Rolled + (1|ID), data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "velutia", ])))
 summary(gamlss(percentHerb ~ Rolled + (1|ID), family = BEZI, data = na.omit(herbivoryLongForm[herbivoryLongForm$Sp == "velutia", ])))
+
+
+
+# all binomial response long dataframe
+longFormBinomial <- standing %>% 
+  dplyr::select("Sp", "ID", "LeafNo", "rhPresence", "uhPresence") %>% 
+  pivot_longer(cols = c(rhPresence, uhPresence), 
+               names_to = "Rolled",
+               values_to = "herbivoryPA") 
+
+# logistic regression with all types of herbivory
+summary(glmer(herbivoryPA ~ Rolled + (1|ID:LeafNo), family = binomial, data = longFormBinomial[longFormBinomial$Sp == "velutia",]))
+summary(glmer(herbivoryPA ~ Rolled + (1|ID), family = binomial, data = longFormBinomial[longFormBinomial$Sp == "scaber",]))
+summary(glmer(herbivoryPA ~ Rolled + (1|ID), family = binomial, data = longFormBinomial[longFormBinomial$Sp == "giga",]))
+summary(glmer(herbivoryPA ~ Rolled + (1|ID), family = binomial, data = longFormBinomial[longFormBinomial$Sp == "stricta",]))
+
+
+# visualizing
+longFormBinomial %>% 
+  filter(Sp == "velutia") %>% 
+  ggplot(aes(fill = Rolled, x = herbivoryPA)) +
+  geom_histogram(position = "dodge")
+
+# just the leaves where herbivory occurred
+herbivoryLongForm %>% 
+  filter(percentHerb > 0) %>% 
+  ggplot(aes(y = percentHerb, x = Rolled, fill = Rolled)) +
+  geom_boxplot() +
+  facet_wrap(~ Sp)
+
+herbivoryLongForm %>% 
+  filter(percentHerb > 0) %>% 
+  ggplot(aes(x = percentHerb, fill = Rolled)) +
+  geom_histogram(position = "dodge")
+
+fitdistr(x = herbivoryLongForm$percentHerb[herbivoryLongForm$percentHerb > 0])
+
+veluNonZeroMod <- lmer(percentHerb ~ Rolled + (1|ID), data = herbivoryLongForm[herbivoryLongForm$Sp == "velutia" & herbivoryLongForm$percentHerb > 0 , ])
+summary(veluNonZeroMod)
+isSingular(veluNonZeroMod)
+
+summary(lmer(percentHerb ~ Rolled + (1|ID:LeafNo), data = herbivoryLongForm[herbivoryLongForm$Sp == "scaber" & herbivoryLongForm$percentHerb > 0 , ]))
+summary(lmer(percentHerb ~ Rolled + (1|ID:LeafNo), data = herbivoryLongForm[herbivoryLongForm$Sp == "giga" & herbivoryLongForm$percentHerb > 0 , ]))
+summary(lmer(percentHerb ~ Rolled + (1|ID:LeafNo), data = herbivoryLongForm[herbivoryLongForm$Sp == "stricta" & herbivoryLongForm$percentHerb > 0 , ]))
+
 
 
