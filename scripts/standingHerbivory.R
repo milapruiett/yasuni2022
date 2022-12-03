@@ -83,11 +83,6 @@ longFormPresenceAbsence %>%
   theme(strip.text.x = element_text(face = "italic")) +
   ylab("Percentage of Leaves with Herbivory")
 
-###### NEED MRM to help w/ stats here
-
-summary(lmer(data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID)))
-lmer(lmer(family = logistic, data = longFormPresenceAbsence, percentHerbPresence ~ Rolled + Sp + (1|ID))))
-
 # how much leaf area is lost due to herbivory on average
 standingSummary <- standing %>% group_by(Sp) %>% 
   summarize(meanPercHerb = mean(herbPerc, na.rm = T), sdPercHerb = sd(herbPerc, na.rm = T))
@@ -100,7 +95,6 @@ ggplot(standing, aes(Sp, herbPerc, fill =Sp)) +
   scale_fill_discrete(name = "Species", labels=c('R. gigante', 'C. scaber', "H. stricta", "H. velutia")) +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) 
-
 
 # does the amount of herbivory change depending on leaf age- is that different for rolled vs unrolled?
 
@@ -120,8 +114,6 @@ herbivoryLongForm %>%
   ylab("Percent Herbivory") +
   scale_y_continuous(trans = "pseudo_log") +
   facet_wrap(~Sp)
-
-# i'm not sure if boxplot or scatterplot is correct
 
 # create a data set for beta regression (remove the one where the percent is greater than 1)
 dataForBetaRegStandingHerb <- herbivoryLongForm %>% filter(percentHerb < 1) %>% na.omit()
@@ -235,7 +227,10 @@ herbivoryLongForm %>%
   ggplot(aes(x = percentHerb, fill = Rolled)) +
   geom_histogram(position = "dodge")
 
-fitdistr(x = herbivoryLongForm$percentHerb[herbivoryLongForm$percentHerb > 0])
+foo <- herbivoryLongForm %>% 
+  filter(percentHerb > 0) %>% 
+  na.omit
+
 
 veluNonZeroMod <- lmer(percentHerb ~ Rolled + (1|ID), data = herbivoryLongForm[herbivoryLongForm$Sp == "velutia" & herbivoryLongForm$percentHerb > 0 , ])
 summary(veluNonZeroMod)
