@@ -242,3 +242,6 @@ summary(lmer(percentHerb ~ Rolled + (1|ID:LeafNo), data = herbivoryLongForm[herb
 
 
 
+
+
+
